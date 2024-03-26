@@ -41,6 +41,7 @@ from pygame.locals import *
 import numpy as np
 pygame.font.init()
 import time
+import copy
 
 ##COLORS##
 #             R    G    B 
@@ -134,18 +135,22 @@ class Game:
 		# Write your code here
 		if cutoff == 0:
 			return self.evaluation_function(board_string)
-
-		min_utility = float("inf")
-		for move in self.generate_possible_moves(board_string, 'B'):
-			new_board_string = self.apply_move(board_string, move)
-			utility = self.max_value(new_board_string, alpha, beta, cutoff - 1)
-			min_utility = min(min_utility, utility)
-
-			if min_utility <= alpha:
-				break
-			beta = min(beta, min_utility)
 		
+		min_utility = float("inf")
+		my_pieces = self.get_my_pieces(board.board_piece_string(board.matrix), 'B')
+		for piece in my_pieces:
+			legal_moves = board.legal_moves((piece[0], piece[1]))
+			for move in legal_moves:
+				board_copy = copy.deepcopy(board)
+				board_copy.move_piece((piece[0], piece[1]), move)
+				utility = self.max_value(board_copy, alpha, beta, cutoff - 1)
+				min_utility = min(utility, min_utility)
+				if beta > min_utility:
+					beta = min_utility
+					if alpha >= beta:
+						break
 		return min_utility
+	
 
 
 		
@@ -159,18 +164,21 @@ class Game:
 		# Write your code here
 		if cutoff == 0:
 			return self.evaluation_function(board_string)
-
 		max_utility = -float("inf")
-		for move in self.generate_possible_moves(board_string, 'R'):
-			new_board_string = self.apply_move(board_string, move)
-			utility = self.min_value(new_board_string, alpha, beta, cutoff - 1)
-			max_utility = max(max_utility, utility)
-
-			if max_utility >= beta:
-				break
-			alpha = max(alpha, max_utility)
-
+		my_pieces = self.get_my_pieces(board.board_piece_string(board.matrix), 'R')
+		for piece in my_pieces:
+			legal_moves = board.legal_moves((piece[0], piece[1]))
+			for move in legal_moves:
+				board_copy = copy.deepcopy(board)
+				board_copy.move_piece((piece[0], piece[1]), move)
+				utility = self.min_value(board_copy, alpha, beta, cutoff - 1)
+				max_utility = max(utility, max_utility)
+				if alpha < max_utility:
+					alpha = max_utility
+					if alpha >= beta:
+						break
 		return max_utility
+	
 	
 	def evaluation_function(self,board_string):
 		'''
@@ -185,6 +193,7 @@ class Game:
 					  len(np.argwhere(board_string=='BK'))*1.5)
 
 		strategic_score = 0
+
 
 		central_squares = [(3, 3), (3, 4), (4, 3), (4, 4)]
 
