@@ -126,7 +126,7 @@ class Game:
 			return np.concatenate((locations,locations2),axis=0)
 		return locations
 	
-	def get_possible_moves(self, board_string, player_color):
+	def potential_moves(self, board_string, player_color):
 		board = Board(board_string)
 		moves = []
 		for x in range(8):
@@ -137,7 +137,7 @@ class Game:
 		return moves
 
 
-	def apply_move(self, board_string, move):
+	def execute_move(self, board_string, move):
 		start, end = move
 		board = Board(board_string)
 		board.move_piece(start, end)
@@ -157,8 +157,8 @@ class Game:
 		if cutoff == 0:
 			return self.evaluate_function(board_string)
 		min_utility = float("inf")
-		for move in self.get_possible_moves(board_string, 'B'):
-			utility = self.max_value(self.apply_move(board_string, move), alpha, beta, cutoff - 1)
+		for move in self.potential_moves(board_string, 'B'):
+			utility = self.max_value(self.execute_move(board_string, move), alpha, beta, cutoff - 1)
 			min_utility = min(min_utility, utility)
 			if min_utility <= alpha:
 				break
@@ -179,8 +179,8 @@ class Game:
 		if cutoff == 0:
 			return self.evaluate_function(board_string)
 		max_utility = -float("inf")
-		for move in self.get_possible_moves(board_string, 'R'):
-			utility = self.min_value(self.apply_move(board_string, move), alpha, beta, cutoff - 1)
+		for move in self.potential_moves(board_string, 'R'):
+			utility = self.min_value(self.execute_move(board_string, move), alpha, beta, cutoff - 1)
 			max_utility = max(max_utility, utility)
 			if max_utility >= beta:
 				break
