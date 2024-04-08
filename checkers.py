@@ -41,7 +41,7 @@ from pygame.locals import *
 import numpy as np
 pygame.font.init()
 import time
-import copy
+
 
 ##COLORS##
 #             R    G    B 
@@ -67,7 +67,7 @@ class Game:
 		self.graphics = Graphics()
 		self.board = Board()
 		self.board_string=self.board.board_piece_string(self.board.matrix)
-		print(self.board_string)		
+		print(self.board_string)
 		self.turn = BLUE
 		self.selected_piece = None # a board location. 
 		self.hop = False
@@ -126,6 +126,27 @@ class Game:
 			return np.concatenate((locations,locations2),axis=0)
 		return locations
 	
+	def get_possible_moves(self, board_string, player_color):
+		board = Board(board_string)
+		moves = []
+		for x in range(8):
+			for y in range(8):
+				piece = board.matrix[x][y].occupant
+				if piece and piece.color[0] == player_color:
+					moves.extend([((x, y), move) for move in board.legal_moves((x, y))])
+		return moves
+
+
+	def apply_move(self, board_string, move):
+		start, end = move
+		board = Board(board_string)
+		board.move_piece(start, end)
+		if abs(start[0] - end[0]) == 2:  # A capture move
+			middle = ((start[0] + end[0]) // 2, (start[1] + end[1]) // 2)
+			board.remove_piece(middle)
+		return board.board_piece_string(board.matrix)
+
+	
 	def min_value(self, board_string, alpha, beta, cutoff):	
 		'''
 		This is the MIN implementation
@@ -134,21 +155,14 @@ class Game:
 		'''
 		# Write your code here
 		if cutoff == 0:
-			return self.evaluation_function(board_string)
-		
+			return self.evaluate_function(board_string)
 		min_utility = float("inf")
-		my_pieces = self.get_my_pieces(board.board_piece_string(board.matrix), 'B')
-		for piece in my_pieces:
-			legal_moves = board.legal_moves((piece[0], piece[1]))
-			for move in legal_moves:
-				board_copy = copy.deepcopy(board)
-				board_copy.move_piece((piece[0], piece[1]), move)
-				utility = self.max_value(board_copy, alpha, beta, cutoff - 1)
-				min_utility = min(utility, min_utility)
-				if beta > min_utility:
-					beta = min_utility
-					if alpha >= beta:
-						break
+		for move in self.get_possible_moves(board_string, 'B'):
+			utility = self.max_value(self.apply_move(board_string, move), alpha, beta, cutoff - 1)
+			min_utility = min(min_utility, utility)
+			if min_utility <= alpha:
+				break
+			beta = min(beta, min_utility)
 		return min_utility
 	
 
@@ -163,21 +177,15 @@ class Game:
 		'''
 		# Write your code here
 		if cutoff == 0:
-			return self.evaluation_function(board_string)
+			return self.evaluate_function(board_string)
 		max_utility = -float("inf")
-		my_pieces = self.get_my_pieces(board.board_piece_string(board.matrix), 'R')
-		for piece in my_pieces:
-			legal_moves = board.legal_moves((piece[0], piece[1]))
-			for move in legal_moves:
-				board_copy = copy.deepcopy(board)
-				board_copy.move_piece((piece[0], piece[1]), move)
-				utility = self.min_value(board_copy, alpha, beta, cutoff - 1)
-				max_utility = max(utility, max_utility)
-				if alpha < max_utility:
-					alpha = max_utility
-					if alpha >= beta:
-						break
-		return max_utility
+		for move in self.get_possible_moves(board_string, 'R'):
+			utility = self.min_value(self.apply_move(board_string, move), alpha, beta, cutoff - 1)
+			max_utility = max(max_utility, utility)
+			if max_utility >= beta:
+				break
+			alpha = max(alpha, max_utility)
+			return max_utility
 	
 	
 	def evaluation_function(self,board_string):
@@ -187,28 +195,14 @@ class Game:
 		The evaluation function returns the appropriate value for MIN and MAX for them to optimize
 		You have to modify the evaluation function as you find appropriate
 		'''
-		basic_score = (len(np.argwhere(board_string=='R')) + 
-					   len(np.argwhere(board_string=='RK'))*1.5) -\
-					 (len(np.argwhere(board_string=='B')) + 
-					  len(np.argwhere(board_string=='BK'))*1.5)
-
-		strategic_score = 0
-
-
-		central_squares = [(3, 3), (3, 4), (4, 3), (4, 4)]
-
-		for square in central_squares:
-			if board_string[square] == 'R' or board_string[square] == 'RK':
-				strategic_score += 0.5
-			elif board_string[square] == 'B' or board_string[square] == 'BK':
-				strategic_score -= 0.5
-
-		return basic_score + strategic_score
-
-
-		return (len(np.argwhere(board_string=='R').tolist()) + len(np.argwhere(board_string=='RK').tolist())*2 ) -\
-			  (len(np.argwhere(board_string=='B').tolist()) + len(np.argwhere(board_string=='BK').tolist())*2 )
-		return None
+		value = 0
+		for x in range(8):
+			for y in range(8):
+				if board_string[x][y] == 'R': value += (y + 1)  # Prioritize advancing
+				elif board_string[x][y] == 'RK': value += 15  # Kings are highly valuable
+				elif board_string[x][y] == 'B': value -= (8 - y)
+				elif board_string[x][y] == 'BK': value -= 15
+		return value
 
 	
 	def event_loop(self):
